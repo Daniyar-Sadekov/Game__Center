@@ -1,3 +1,135 @@
+// Класс для контроля производительности сайта
+class DetailManager {
+    constructor() {
+        this.isLowDetail = false;
+        this.detailToggle = document.getElementById('detail-toggle');
+
+        // Проверяем сохраненные настройки
+        const savedDetailMode = localStorage.getItem('lowDetailMode');
+        if (savedDetailMode === 'true') {
+            this.enableLowDetailMode();
+        }
+
+        this.initEvents();
+        this.monitorPerformance();
+    }
+
+    initEvents() {
+        this.detailToggle.addEventListener('click', () => {
+            this.toggleDetailMode();
+        });
+
+        // Автоматическое включение на слабых устройствах
+        this.autoDetectPerformance();
+    }
+
+    monitorPerformance() {
+        let frameCount = 0;
+        let lastTime = performance.now();
+
+        const checkPerformance = (currentTime) => {
+            frameCount++;
+
+            // Проверяем FPS каждую секунду
+            if (currentTime - lastTime >= 1000) {
+                const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+
+                // Если FPS ниже порога, включаем режим низкой детализации
+                if (fps < 25 && !this.isLowDetail) {
+                    this.enableLowDetailMode();
+                }
+
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            requestAnimationFrame(checkPerformance);
+        };
+
+        requestAnimationFrame(checkPerformance);
+    }
+
+    toggleDetailMode() {
+        if (this.isLowDetail) {
+            this.disableLowDetailMode();
+        } else {
+            this.enableLowDetailMode();
+        }
+    }
+
+    enableLowDetailMode() {
+        document.documentElement.classList.add('low-detail-mode');
+        this.isLowDetail = true;
+        this.detailToggle.classList.add('active');
+        this.detailToggle.title = 'Full Detail Mode';
+        this.detailToggle.setAttribute('aria-label', 'Режим полной детализации');
+
+        // Останавливаем сложные анимации
+        this.stopIntensiveAnimations();
+
+        // Сохраняем настройку
+        localStorage.setItem('lowDetailMode', 'true');
+
+        console.log('Режим низкой детализации активирован');
+    }
+
+    disableLowDetailMode() {
+        document.documentElement.classList.remove('low-detail-mode');
+        this.isLowDetail = false;
+        this.detailToggle.classList.remove('active');
+        this.detailToggle.title = 'Low Detail Mode';
+        this.detailToggle.setAttribute('aria-label', 'Режим низкой детализации');
+
+        // Восстанавливаем анимации
+        this.restoreAnimations();
+
+        // Сохраняем настройку
+        localStorage.setItem('lowDetailMode', 'false');
+
+        console.log('Режим полной детализации активирован');
+    }
+
+    stopIntensiveAnimations() {
+        // Уменьшаем количество звезд
+        const stars = document.querySelectorAll('.star');
+        for (let i = 100; i < stars.length; i++) {
+            stars[i].style.display = 'none';
+        }
+
+        // Останавливаем генерацию новых анимаций
+        if (window.starGenerationInterval) {
+            clearInterval(window.starGenerationInterval);
+        }
+    }
+
+    restoreAnimations() {
+        // Восстанавливаем отображение звезд
+        const stars = document.querySelectorAll('.star');
+        stars.forEach(star => {
+            star.style.display = 'block';
+        });
+    }
+
+    autoDetectPerformance() {
+        // Проверяем производительность устройства
+        if (this.isLowPerformanceDevice()) {
+            this.enableLowDetailMode();
+        }
+    }
+
+    isLowPerformanceDevice() {
+        // Простые проверки на слабые устройства
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isSlowConnection = navigator.connection && (
+            navigator.connection.saveData ||
+            navigator.connection.effectiveType.includes('2g') ||
+            navigator.connection.effectiveType.includes('3g')
+        );
+
+        return isMobile || isSlowConnection;
+    }
+}
+
 // Основной класс для управления игровым центром
 class GameCenter {
     constructor() {
@@ -7,6 +139,7 @@ class GameCenter {
         this.isMusicPlaying = false;
 
         // Измененный порядок
+        this.detailManager = new DetailManager();
         this.initMusic();
         this.initMusicSettings();
         this.initBackground();
@@ -1078,6 +1211,9 @@ class SpaceGame {
 
     createParallaxBackground() {
         const background = document.getElementById('space-background');
+        // Уменьшаем количество элементов в режиме низкой детализации
+        const layerCount = gameCenter.detailManager.isLowDetail ? 1 : 2;
+        const starCount = gameCenter.detailManager.isLowDetail ? 25 : 50;
 
         // Создаем слои параллакса
         const layers = [
@@ -1268,7 +1404,8 @@ class SpaceGame {
 
     generateThought() {
         if (!this.active) return;
-
+        // Увеличиваем интервал в режиме низкой детализации
+        const interval = gameCenter.detailManager.isLowDetail ? 2000 : 1200;
         const isNegative = Math.random() > 0.5;
         const thoughts = isNegative ? this.negativeThoughtsList : this.positiveThoughtsList;
         const text = thoughts[Math.floor(Math.random() * thoughts.length)];
@@ -1621,6 +1758,9 @@ class BreathingGame {
     }
 
     createBreathingBackground() {
+        if (gameCenter.detailManager.isLowDetail) {
+            return; // Не создаем фон в режиме низкой детализации
+        }
         const background = document.getElementById('breathing-background');
 
         // Создаем звезды для фона дыхательного упражнения

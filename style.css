@@ -24,6 +24,44 @@
         }
 
 
+        /* Стили для режима низкой детализации */
+        .low-detail-mode {
+            /* Отключаем сложные анимации */
+            animation: none !important;
+            transition: none !important;
+        }
+
+        .low-detail-mode .star,
+        .low-detail-mode .nebula,
+        .low-detail-mode .galaxy,
+        .low-detail-mode .pulsar,
+        .low-detail-mode .cosmic-dust,
+        .low-detail-mode .shooting-star,
+        .low-detail-mode .comet {
+            display: none !important;
+        }
+
+        .low-detail-mode .game-card::before,
+        .low-detail-mode .btn::after {
+            display: none !important;
+        }
+
+        .low-detail-mode .parallax-layer {
+            transform: none !important;
+            animation: none !important;
+        }
+
+        /* Упрощаем фон в режиме низкой детализации */
+        .low-detail-mode body {
+            background: linear-gradient(135deg, #0a0a2a 0%, #000428 100%) !important;
+        }
+
+        /* Стиль для активного режима */
+        #detail-toggle.active {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            color: white;
+        }
+
         #custom-music-upload {
             display: none;
         }
