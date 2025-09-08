@@ -19,7 +19,7 @@
             <!-- Ссылка на автора проекта с иконкой GitHub -->
             <a target="_new" href="https://github.com/Daniyar-Sadekov" id="author-link" class="control-item"
                 aria-label="Автор проекта">
-                <img src="img/github-mark.svg">
+                <img src="img/github-mark.svg" alt="GitHub">
             </a>
 
             <!-- Кнопка управления музыкой -->
@@ -146,15 +146,15 @@
 
                 <div class="breath-controls">
                     <button class="btn" id="start-breathing">Начать</button>
-                    <button class="btn btn-secondary" id="pause-breathing" style="display: none;">Пауза</button>
+                    <button class="btn btn-secondary" id="pause-breathing">Пауза</button>
                     <button class="btn btn-warning" id="reset-breathing">Сброс</button>
                 </div>
             </div>
             <div class="instructions">
                 <h3>Инструкция:</h3>
-                <p>1. Вдохните через нос на 4 секунды</p>
+                <p>1. Вдыхайте через нос 4 секунды</p>
                 <p>2. Задержите дыхание на 7 секунд</p>
-                <p>3. Медленно выдохните через рот на 8 счетов</p>
+                <p>3. Медленно выдыхайте через рот 8 секунд</p>
                 <p>Повторите цикл 3-5 раз для достижения эффекта расслабления.</p>
             </div>
         </div>
@@ -189,7 +189,7 @@
                 <div>
                     <span>Эффективность перехвата:</span>
                     <div class="progress-bar">
-                        <div id="efficiency-bar" class="progress-fill progress-positive" style="width: 0%"></div>
+                        <div id="efficiency-bar" class="progress-fill progress-positive"></div>
                     </div>
                 </div>
 
@@ -197,13 +197,13 @@
                 <div>
                     <span>До игры:</span>
                     <div class="progress-bar">
-                        <div id="mood-before-bar" class="progress-fill progress-positive" style="width: 0%"></div>
+                        <div id="mood-before-bar" class="progress-fill progress-positive"></div>
                     </div>
                 </div>
                 <div>
                     <span>После игры:</span>
                     <div class="progress-bar">
-                        <div id="mood-after-bar" class="progress-fill progress-positive" style="width: 0%"></div>
+                        <div id="mood-after-bar" class="progress-fill progress-positive"></div>
                     </div>
                 </div>
 
@@ -211,10 +211,14 @@
             </div>
 
             <div id="sessions-list" class="result-section">
-                <h3>История сессий</h3>
+                <div>
+                    <h3>История сессий</h3>
+                    <button id="clear-sessions" class="btn btn-warning">Очистить историю</button>
+                </div>
                 <div id="sessions-container"></div>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- Контейнер для рефлексии -->
@@ -246,7 +250,7 @@
                     <input type="radio" id="custom-music" name="music" value="custom">
                     <label for="custom-music">Загрузить свою музыку</label>
                 </div>
-                <div id="custom-music-upload" style="display: none;">
+                <div id="custom-music-upload">
                     <input type="file" id="music-file" accept="audio/*">
                     <p class="small-text">Поддерживаемые форматы: MP3, WAV, OGG</p>
                 </div>
@@ -260,8 +264,20 @@
         </div>
     </div>
 
+    <!-- modal -->
+    <div id="confirmation-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3>Подтверждение</h3>
+            <p id="dialog-message"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-warning" id="modal-confirm">Да</button>
+                <button class="btn" id="modal-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Аудио элемент для музыки -->
-    <audio id="background-music" loop>
+    <audio id="background-music" loop preload="metadata">
         <source src="/music/Jim Yosef - Eclipse [NCS Release].mp3" type="audio/mpeg">
     </audio>
 

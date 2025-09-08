@@ -49,6 +49,174 @@ class GameCenter {
         }, 2000);
     }
 
+    clearAllSessions() {
+        this.showConfirmationModal(
+            "Вы уверены, что хотите удалить всю историю сессий?",
+            () => {
+                localStorage.setItem('gameSessions', JSON.stringify([]));
+                this.loadStats();
+
+                // Показываем уведомление об успешном удалении
+                this.showNotification('История сессий очищена', 'success');
+            }
+        );
+    }
+
+    deleteSession(index) {
+        this.showConfirmationModal(
+            "Вы уверены, что хотите удалить эту сессию?",
+            () => {
+                const sessions = JSON.parse(localStorage.getItem('gameSessions') || '[]');
+                if (index >= 0 && index < sessions.length) {
+                    sessions.splice(index, 1);
+                    localStorage.setItem('gameSessions', JSON.stringify(sessions));
+                    this.loadStats();
+                    this.showNotification('Сессия удалена', 'success');
+                }
+            }
+        );
+    }
+
+
+    showConfirmModal(message, callback) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+        <div class="modal-content">
+            <h3>Подтверждение</h3>
+            <p>${message}</p>
+            <div class="confirm-buttons">
+                <button class="btn btn-warning" id="confirm-yes">Да</button>
+                <button class="btn" id="confirm-no">Отмена</button>
+            </div>
+        </div>
+    `;
+
+        document.body.appendChild(modal);
+
+        modal.querySelector('#confirm-yes').addEventListener('click', () => {
+            callback(true);
+            modal.remove();
+        });
+
+        modal.querySelector('#confirm-no').addEventListener('click', () => {
+            callback(false);
+            modal.remove();
+        });
+
+        // Закрытие по клику вне окна
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                callback(false);
+                modal.remove();
+            }
+        });
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+
+        // Стили для уведомления
+        notification.style.position = 'fixed';
+        notification.style.bottom = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '10px 15px';
+        notification.style.borderRadius = '5px';
+        notification.style.zIndex = '10000';
+        notification.style.color = 'white';
+        notification.style.fontWeight = 'bold';
+
+        if (type === 'success') {
+            notification.style.background = 'rgba(86, 171, 47, 0.9)';
+        } else {
+            notification.style.background = 'rgba(79, 160, 255, 0.9)';
+        }
+
+        document.body.appendChild(notification);
+
+        // Анимация появления
+        gsap.fromTo(notification,
+            { y: 100, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5 }
+        );
+
+        // Автоматическое скрытие через 3 секунды
+        setTimeout(() => {
+            gsap.to(notification, {
+                y: 100,
+                opacity: 0,
+                duration: 0.5,
+                onComplete: () => notification.remove()
+            });
+        }, 3000);
+    }
+
+    // Метод для обработки перехода между экранами
+    switchScreen(newScreenId, fromBackButton = false) {
+        // Сохраняем предыдущий экран
+        const previousScreen = this.currentScreen;
+
+        // Скрываем текущий экран
+        const currentScreenElement = document.getElementById(this.currentScreen);
+        if (currentScreenElement) {
+            currentScreenElement.classList.remove('active');
+            currentScreenElement.classList.add('hidden');
+        }
+
+        // Обрабатываем особые случаи
+        if (fromBackButton) {
+            this.handleBackButton(previousScreen);
+        }
+
+        // Показываем новый экран
+        const newScreenElement = document.getElementById(newScreenId);
+        if (newScreenElement) {
+            newScreenElement.classList.remove('hidden');
+            setTimeout(() => {
+                newScreenElement.classList.add('active');
+                this.currentScreen = newScreenId;
+
+                // Действия после перехода на новый экран
+                if (newScreenId === 'stats-screen') {
+                    this.loadStats();
+                }
+
+                if (newScreenId === 'breathing-game') {
+                    breathingGame.reset();
+                }
+            }, 50);
+        }
+    }
+
+    // Обработчик кнопки "Назад"
+    handleBackButton(previousScreen) {
+        // Останавливаем игры в зависимости от предыдущего экрана
+        if (previousScreen === 'space-game' && spaceGame.active) {
+            spaceGame.stop(false);
+        }
+
+        if (previousScreen === 'breathing-game' && breathingGame.active) {
+            breathingGame.pause();
+            breathingGame.reset();
+        }
+
+        // Скрываем все модальные окна
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            if (!modal.id || modal.id !== 'music-modal') {
+                modal.classList.add('hidden');
+            }
+        });
+
+        // Скрываем контейнер рефлексии
+        document.getElementById('reflection-container').classList.add('hidden');
+
+        // Восстанавливаем курсор
+        document.body.classList.remove('hide-cursor');
+        this.ensureCursorVisible();
+    }
+
     animateCards() {
         // Анимация появления карточек в главном меню
         const cards = document.querySelectorAll('.game-card');
@@ -247,6 +415,50 @@ class GameCenter {
     }
 
     initEvents() {
+
+        // Обработка ESC для всех модальных окон
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('confirmation-modal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    this.hideConfirmationModal();
+
+                    // Вызываем cancel callback если он есть
+                    const cancelBtn = document.getElementById('modal-cancel');
+                    if (cancelBtn && cancelBtn.onclick) {
+                        cancelBtn.onclick();
+                    }
+                }
+
+                // Также закрываем другие модальные окна
+                document.querySelectorAll('.modal-overlay').forEach(modal => {
+                    if (!modal.classList.contains('hidden') && (!modal.id || modal.id !== 'music-modal')) {
+                        modal.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        // Обработчики для кнопок назад
+        document.querySelectorAll('.back-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchScreen(btn.dataset.target, true);
+            });
+        });
+
+        // Обработчики для других кнопок навигации
+        document.querySelectorAll('[data-target]:not(.back-btn)').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchScreen(btn.dataset.target, false);
+            });
+        });
+
+        // Кнопка очистки истории сессий
+        document.getElementById('clear-sessions').addEventListener('click', () => {
+            this.clearAllSessions();
+        });
+
         // Закрытие музыкального модального окна
         document.querySelector('#music-modal .modal-close').addEventListener('click', () => {
             this.hideMusicModal();
@@ -402,6 +614,63 @@ class GameCenter {
         }
     }
 
+    showConfirmationModal(message, confirmCallback, cancelCallback = null) {
+        const modal = document.getElementById('confirmation-modal');
+        const messageElement = document.getElementById('dialog-message');
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+
+        // Устанавливаем сообщение
+        messageElement.textContent = message;
+
+        // Удаляем предыдущие обработчики
+        confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+
+        // Получаем новые reference после клонирования
+        const newConfirmBtn = document.getElementById('modal-confirm');
+        const newCancelBtn = document.getElementById('modal-cancel');
+
+        // Добавляем новые обработчики
+        newConfirmBtn.addEventListener('click', () => {
+            confirmCallback();
+            this.hideConfirmationModal();
+        });
+
+        newCancelBtn.addEventListener('click', () => {
+            if (cancelCallback) cancelCallback();
+            this.hideConfirmationModal();
+        });
+
+        // Закрытие при клике на оверлей
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                if (cancelCallback) cancelCallback();
+                this.hideConfirmationModal();
+            }
+        });
+
+        // Показываем модальное окно
+        modal.classList.remove('hidden');
+
+        // Убедимся, что кастомный курсор виден
+        this.ensureCursorVisible();
+    }
+
+    hideConfirmationModal() {
+        const modal = document.getElementById('confirmation-modal');
+        modal.classList.add('hidden');
+    }
+
+    ensureCursorVisible() {
+        const customCursor = document.getElementById('custom-cursor');
+        if (customCursor) {
+            customCursor.style.display = 'block';
+            customCursor.style.opacity = '1';
+            customCursor.style.zIndex = '10001';
+        }
+    }
+
     showMusicModal() {
         const musicModal = document.getElementById('music-modal');
         musicModal.classList.remove('hidden');
@@ -501,9 +770,9 @@ class GameCenter {
                             <p><strong>Как выполнять:</strong></p>
                             <ul>
                                 <li>Сядьте в удобной позе</li>
-                                <li>Вдохните через нос на 4 секунды</li>
+                                <li>Вдыхайте через нос 4 секунды</li>
                                 <li>Задержите дыхание на 7 секунд</li>
-                                <li>Медленно выдохните через рот на 8 счетов</li>
+                                <li>Медленно выдыхайте через рот 8 секунд</li>
                             </ul>
                             <p>Повторите цикл 3-5 раз для достижения наилучшего эффекта расслабления.</p>
                         </div>
@@ -596,6 +865,7 @@ class GameCenter {
     }
 
     showScreen(screenId) {
+        const results = document.getElementById('game-results');
         // Скрыть текущий экран
         document.getElementById(this.currentScreen).classList.remove('active');
         document.getElementById(this.currentScreen).classList.add('hidden');
@@ -608,9 +878,9 @@ class GameCenter {
 
         this.currentScreen = screenId;
 
-        // Остановить игры при переходе в главное меню
+        // Останавливаем игры при переходе в главное меню
         if (screenId === 'main-menu') {
-            if (spaceGame.active) spaceGame.stop();
+            if (spaceGame.active) spaceGame.stop(false);
             if (breathingGame.active) breathingGame.pause();
 
             // Восстанавливаем курсор
@@ -626,6 +896,20 @@ class GameCenter {
         if (screenId === 'stats-screen') {
             this.loadStats();
         }
+        // Показываем рекомендацию только если игра завершена естественно
+        if (this.isGameCompleted && this.missedNegative >= 3) {
+            document.getElementById('breathing-recommendation').classList.remove('hidden');
+        } else {
+            document.getElementById('breathing-recommendation').classList.add('hidden');
+        }
+
+        results.classList.remove('hidden');
+
+        // Анимация появления результатов
+        gsap.fromTo('.result-section',
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.5, stagger: 0.2 }
+        );
     }
 
     loadStats() {
@@ -663,16 +947,27 @@ class GameCenter {
         if (sessions.length === 0) {
             sessionsContainer.innerHTML = '<p class="empty-message">У вас пока нет завершенных сессий.</p>';
         } else {
-            sessions.slice().reverse().forEach(session => {
+            sessions.slice().reverse().forEach((session, index) => {
                 const sessionEl = document.createElement('div');
-                sessionEl.className = 'thought-item';
+                sessionEl.className = 'session-item';
                 sessionEl.innerHTML = `
-                            <p><strong>${new Date(session.date).toLocaleString()}</strong></p>
-                            <p>Длительность: ${session.duration} сек</p>
-                            <p>Настроение: ${session.initialMood} → ${session.finalMood}</p>
-                            <p>Мысли: +${session.positiveThoughts} / -${session.negativeThoughts}</p>
-                        `;
+                <button class="delete-session btn btn-warning" data-index="${sessions.length - 1 - index}">×</button>
+                <p><strong>${new Date(session.date).toLocaleString()}</strong></p>
+                <p>Длительность: ${session.duration} сек</p>
+                <p>Настроение: ${session.initialMood} → ${session.finalMood}</p>
+                <p>Мысли: +${session.positiveThoughts} / -${session.negativeThoughts}</p>
+                ${session.nextAction ? `<p>Следующее действие: ${session.nextAction}</p>` : ''}
+            `;
                 sessionsContainer.appendChild(sessionEl);
+            });
+
+            // Добавляем обработчики для кнопок удаления
+            sessionsContainer.querySelectorAll('.delete-session').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const sessionIndex = parseInt(btn.dataset.index);
+                    this.deleteSession(sessionIndex);
+                });
             });
         }
     }
@@ -737,6 +1032,8 @@ class SpaceGame {
         this.initialMood = null;
         this.finalMood = null;
 
+        this.isGameCompleted = false;
+
         this.negativeThoughtsList = [
             "У меня не получится", "Я неудачник", "Это слишком сложно",
             "Я устал", "Это бессмысленно", "Я не справлюсь",
@@ -777,6 +1074,7 @@ class SpaceGame {
             this.moveParallaxLayers(e);
         });
     }
+
 
     createParallaxBackground() {
         const background = document.getElementById('space-background');
@@ -864,6 +1162,10 @@ class SpaceGame {
     start() {
         if (this.active) return;
 
+        // Сбрасываем состояние игры
+        this.isGameCompleted = false;
+        document.getElementById('game-results').classList.add('hidden');
+
         // Показываем вопросы рефлексии перед началом
         this.showReflectionQuestions();
     }
@@ -909,7 +1211,9 @@ class SpaceGame {
             this.timeLeft--;
             this.updateTimer();
 
-            if (this.timeLeft <= 0) this.stop();
+            if (this.timeLeft <= 0) {
+                this.stop(true); // true означает естественное завершение
+            }
         }, 1000);
 
         // Запускаем генерацию мыслей
@@ -919,10 +1223,13 @@ class SpaceGame {
         this.gameLoop();
     }
 
-    stop() {
+
+    stop(isNaturalEnd = false) {
         if (!this.active) return;
 
         this.active = false;
+        this.isGameCompleted = isNaturalEnd; // Устанавливаем флаг завершения
+
         clearInterval(this.timerInterval);
         clearInterval(this.thoughtInterval);
         cancelAnimationFrame(this.animationFrame);
@@ -941,8 +1248,13 @@ class SpaceGame {
         // Прячем игрока
         this.player.style.display = 'none';
 
-        // Показываем вопросы рефлексии после игры
-        this.showPostGameReflection();
+        // Показываем рефлексию только если игра завершена естественным образом
+        if (isNaturalEnd) {
+            this.showPostGameReflection();
+        } else {
+            // Если игра прервана, сразу показываем результаты
+            this.showResults();
+        }
     }
 
     gameLoop() {
@@ -1161,19 +1473,19 @@ class SpaceGame {
 
     showPostGameReflection() {
         const reflectionHTML = `
-                    <div class="reflection-section">
-                        <h3>После игры</h3>
-                        <p>Как вы себя чувствуете теперь?</p>
-                        <div class="reflection-options">
-                            <button class="reflection-btn" data-value="1">😔 Напряжен</button>
-                            <button class="reflection-btn" data-value="2">😐 Нейтрально</button>
-                            <button class="reflection-btn" data-value="3">😊 Спокоен</button>
-                        </div>
-                        <p>Что будете делать дальше?</p>
-                        <input type="text" id="next-action-input" placeholder="Мой следующий шаг...">
-                        <button id="save-reflection" class="btn">Сохранить и продолжить</button>
+                <div class="reflection-section">
+                    <h3>После игры</h3>
+                    <p>Как вы себя чувствуете теперь?</p>
+                    <div class="reflection-options">
+                        <button class="reflection-btn" data-value="1">😔 Напряжен</button>
+                        <button class="reflection-btn" data-value="2">😐 Нейтрально</button>
+                        <button class="reflection-btn" data-value="3">😊 Спокоен</button>
                     </div>
-                `;
+                    <p>Что будете делать дальше?</p>
+                    <input type="text" id="next-action-input" placeholder="Мой следующий шаг...">
+                    <button id="save-reflection" class="btn">Сохранить и продолжить</button>
+                </div>
+            `;
 
         const container = document.getElementById('reflection-container');
         container.innerHTML = reflectionHTML;
@@ -1242,7 +1554,7 @@ class SpaceGame {
             caughtList.innerHTML = '<p class="empty-message">Вы не перехватили ни одной позитивной мысли.</p>';
         } else {
             const positiveTitle = document.createElement('h3');
-            positiveTitle.textContent = `Только погляди! Вы перехватили ${this.caughtPositiveThoughts.length} позитивных мыслей!`;
+            positiveTitle.textContent = `Только поглядите! Вы перехватили ${this.caughtPositiveThoughts.length} позитивных мыслей!`;
             positiveTitle.style.color = '#a8e063';
             positiveTitle.style.marginBottom = '20px';
             caughtList.appendChild(positiveTitle);
@@ -1290,9 +1602,9 @@ class BreathingGame {
         this.animationFrame = null;
 
         this.phases = {
-            inhale: { duration: 4000, text: "Вдохните на 4 счета", indicator: "4" },
-            hold: { duration: 7000, text: "Задержите дыхание на 7 счетов", indicator: "7" },
-            exhale: { duration: 8000, text: "Выдохните на 8 счетов", indicator: "8" }
+            inhale: { duration: 4000, text: "Вдыхайте 4 секунды", indicator: "4" },
+            hold: { duration: 7000, text: "Задержите дыхание на 7 секунд", indicator: "7" },
+            exhale: { duration: 8000, text: "Выдыхайте 8 секунд", indicator: "8" }
         };
 
         this.init();
@@ -1480,6 +1792,22 @@ document.addEventListener('DOMContentLoaded', () => {
     gameCenter = new GameCenter();
     spaceGame = new SpaceGame();
     breathingGame = new BreathingGame();
+    // Обработка ESC для всех модальных окон
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const dialog = document.getElementById('confirmation-dialog');
+            if (dialog && dialog.open) {
+                e.preventDefault();
+                dialog.close();
+
+                // Вызываем cancel callback если он есть
+                const cancelBtn = document.getElementById('dialog-cancel');
+                if (cancelBtn && cancelBtn.onclick) {
+                    cancelBtn.onclick();
+                }
+            }
+        }
+    });
 });
 
 // Обработчик изменения размера окна
