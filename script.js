@@ -12,6 +12,7 @@ class DetailManager {
 
         this.initEvents();
         this.monitorPerformance();
+        this.renderModeOnBtn();
     }
 
     initEvents() {
@@ -35,7 +36,7 @@ class DetailManager {
                 const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
 
                 // Если FPS ниже порога, включаем режим низкой детализации
-                if (fps < 25 && !this.isLowDetail) {
+                if (fps < 10 && !this.isLowDetail) {
                     this.enableLowDetailMode();
                 }
 
@@ -61,7 +62,8 @@ class DetailManager {
         document.documentElement.classList.add('low-detail-mode');
         this.isLowDetail = true;
         this.detailToggle.classList.add('active');
-        this.detailToggle.title = 'Full Detail Mode';
+        this.detailToggle.title = 'Switch to Full Detail Mode';
+        this.detailToggle.textContent = 'FDM'
         this.detailToggle.setAttribute('aria-label', 'Режим полной детализации');
 
         // Останавливаем сложные анимации
@@ -77,7 +79,8 @@ class DetailManager {
         document.documentElement.classList.remove('low-detail-mode');
         this.isLowDetail = false;
         this.detailToggle.classList.remove('active');
-        this.detailToggle.title = 'Low Detail Mode';
+        this.detailToggle.title = 'Switch to Low Detail Mode';
+        this.detailToggle.textContent = 'LDM'
         this.detailToggle.setAttribute('aria-label', 'Режим низкой детализации');
 
         // Восстанавливаем анимации
@@ -127,6 +130,18 @@ class DetailManager {
         );
 
         return isMobile || isSlowConnection;
+    }
+
+
+    // Изначальный вид кнопки при загрузке страницы
+    renderModeOnBtn() {
+        if (this.detailToggle.textContent == 'FDM') {
+            this.detailToggle.title = 'Switch to Full Detail Mode'
+        } else if (this.detailToggle.textContent == 'LDM') {
+            this.detailToggle.title = 'Switch to Low Detail Mode'
+        } else {
+            this.disableLowDetailMode()
+        }
     }
 }
 
